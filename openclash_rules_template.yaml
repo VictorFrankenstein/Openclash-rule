@@ -1,0 +1,113 @@
+# OpenClash Rule Template
+#
+# This template provides a basic structure for manually writing
+# OpenClash rules in YAML format. Copy and modify as needed when
+# creating your own rule sets.
+#
+# Basic structure:
+#   rules:
+#     - <RULE_TYPE>,<VALUE>,<PROXY_GROUP>[,<OPTION>]
+#
+# RULE_TYPE examples:
+#   - DOMAIN
+#   - DOMAIN-SUFFIX
+#   - DOMAIN-KEYWORD
+#   - IP-CIDR
+#   - GEOIP
+#   - SRC-IP-CIDR
+#   - DST-PORT
+#   - MATCH (catch-all)
+#   - FINAL (same as MATCH)
+#
+# VALUE depends on rule type. For domains, specify a hostname or suffix.
+# For CIDR rules use an address/netmask, for GEOIP use a country code
+# (e.g. "CN" for China).
+#
+# PROXY_GROUP should match one of the group names defined in your
+# OpenClash configuration (e.g. "Proxy", "DIRECT", "REJECT").
+#
+# OPTION is optional and may include notes or additional parameters
+# supported by Clash/OpenClash.
+#
+# Examples:
+#   - DOMAIN-SUFFIX,google.com,Proxy       # send all google subdomains to Proxy
+#   - DOMAIN,ads.example.com,REJECT        # block a specific ad domain
+#   - IP-CIDR,192.168.0.0/16,DIRECT        # local LAN traffic goes directly
+#   - GEOIP,CN,DIRECT                      # traffic to China goes direct
+#   - MATCH,DIRECT                         # default rule sends everything direct
+#
+# ----- 示例规则集与分流 -----
+# 可以通过 "rule-providers" 在 OpenClash 中引用外部规则集。
+# 每个规则集通常包含多个GitHub链接或文件列表。
+# 下面展示一个分流规则集例子：
+#
+# rule-providers:
+#   github_safety:
+#     type: http
+#     url: "https://raw.githubusercontent.com/username/repo/master/safety.yaml"
+#     path: ./ruleset/safety.yaml
+#   gfwlist:
+#     type: http
+#     url: "https://raw.githubusercontent.com/gfwlist/gfwlist/master/gfwlist.txt"
+#     path: ./ruleset/gfwlist.yaml
+#
+# 使用时在 rules 部分通过 "RULESET" 类型调用：
+#   - RULESET,github_safety,Proxy
+#   - RULESET,gfwlist,DIRECT
+#
+# ----- 自定义规则 -----
+# 在 "rules:" 下手动添加本地规则，比如：
+#   - DOMAIN-SUFFIX,example.com,Proxy  # Example 规则
+#   - IP-CIDR,10.0.0.0/8,DIRECT       # 内网流量走直连
+#
+# ----- 节点分组与筛选规则 -----
+# 在配置中定义多个代理/节点分组，并可使用筛选协议，例如按照国家、延迟等。
+# 例如：
+#   proxy-groups:
+#     - name: "Auto"
+#       type: select
+#       proxies:
+#         - Proxy
+#         - "US-Netflix"
+#         - DIRECT
+#     - name: "ByCountry"
+#       type: url-test
+#       proxies:
+#         - all-proxies
+#       url: "http://www.gstatic.com/generate_204"
+#       interval: 300
+#
+# 可设置节点分组筛选：
+#   - name: "Netflix"
+#     type: select
+#     proxies:
+#       - "🇺🇸 US Node"
+#       - "🇯🇵 JP Node"
+#     use:
+#       - country: US
+#         sort: "delay"
+#
+# ----- 规则排序建议 -----
+# 1. 数量少、明确的规则放在前面，例如特定域名、IP地址。
+# 2. 本地网络、内网规则紧随其后。
+# 3. 外部规则集（RULESET）根据重要性排序。
+# 4. 兜底规则（MATCH/FINAL）应放在末尾，以确保所有流量都被处理。
+#
+# 以下示例开始实际规则：
+
+rules:
+  # 1. 精确规则：少量条目优先
+  - DOMAIN,ads.example.com,REJECT        # 屏蔽特定广告域名
+  - DOMAIN-SUFFIX,login.example.com,Proxy # 登录子域走代理
+
+  # 2. 本地/内网
+  - IP-CIDR,192.168.0.0/16,DIRECT        # 本地网络直连
+  - IP-CIDR,10.0.0.0/8,DIRECT            # 备用内网规则
+
+  # 3. 外部规则集
+  - RULESET,github_safety,Proxy          # 示例分流规则集
+  - RULESET,gfwlist,DIRECT               # GFW 列表走直连
+
+  # 4. 兜底规则
+  - MATCH,DIRECT                         # 默认流量直连
+  # 更多自定义规则可在此处继续添加
